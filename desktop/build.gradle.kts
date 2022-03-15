@@ -16,7 +16,7 @@ java {
 }
 
 application {
-    mainClass.set("com.github.quillraven.darkmatter.desktop.LauncherKt")
+    mainClass.set("com.hvs.darkmatter.desktop.LauncherKt")
 }
 
 val assetsDir = rootProject.files("assets")
