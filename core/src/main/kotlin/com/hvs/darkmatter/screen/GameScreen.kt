@@ -1,45 +1,46 @@
 package com.hvs.darkmatter.screen
 
+import com.badlogic.ashley.core.Engine
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.Batch
-import com.badlogic.gdx.graphics.g2d.Sprite
-import com.badlogic.gdx.utils.viewport.FitViewport
 import com.hvs.darkmatter.DarkMatter
-import ktx.graphics.use
+import com.hvs.darkmatter.DarkMatter.Companion.UNIT_SCALE
+import com.hvs.darkmatter.ecs.component.GraphicComponent
+import com.hvs.darkmatter.ecs.component.TransformComponent
+import ktx.ashley.entity
+import ktx.ashley.with
 import ktx.log.debug
 import ktx.log.logger
 
-class GameScreen(
-    private val game: DarkMatter,
-    private val batch: Batch
-) : Screen(game) {
-
-    private val viewPort = FitViewport(9f, 16f)
-    private val texture = Texture(Gdx.files.internal("raw/graphics/ship_base.png"))
-    private val sprite = Sprite(texture).apply { setSize(1f , 1f )}
-
-    override fun show() {
-        LOG.debug { "Second screen is shown" }
-        sprite.setPosition(1f, 1f)
-    }
-
-    override fun resize(width: Int, height: Int) {
-        viewPort.update(width, height, true)
-    }
-
-    override fun render(delta: Float) {
-        viewPort.apply()
-        batch.use(viewPort.camera.combined) {
-            sprite.draw(it)
+class GameScreen(game: DarkMatter) : Screen(game) {
+    private val playerTexture = Texture(Gdx.files.internal("raw/graphics/ship_base.png"))
+    private val player = engine.entity {
+        with<TransformComponent> {
+            position.set(1f, 1f, 0f)
+        }
+        with<GraphicComponent> {
+            sprite.run {
+                setRegion(playerTexture)
+                setSize(texture.width * UNIT_SCALE, texture.height * UNIT_SCALE)
+                setOriginCenter()
+            }
         }
     }
 
+    override fun show() {
+        LOG.debug { "Second screen is shown" }
+    }
+
+    override fun render(delta: Float) {
+        engine.update(delta)
+    }
+
     override fun dispose() {
-        texture.dispose()
+        playerTexture.dispose()
     }
 
     companion object {
-        private val LOG = logger<GameScreen>()
+        val LOG = logger<GameScreen>()
     }
 }
