@@ -37,14 +37,15 @@ class RenderSystem(
 
         if (graphicComponent.sprite.texture == null) {
             LOG.error { "Entity has no texture for rendering. entity=$entity" }
+            return
         }
 
         graphicComponent.sprite.run {
             rotation = transformComponent.rotationDegrees
 
             setBounds(
-                transformComponent.position.x,
-                transformComponent.position.y,
+                transformComponent.interpolatedPosition.x,
+                transformComponent.interpolatedPosition.y,
                 transformComponent.size.x,
                 transformComponent.size.y
             )

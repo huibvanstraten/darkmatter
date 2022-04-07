@@ -6,41 +6,38 @@ import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.Batch
 import com.hvs.darkmatter.DarkMatter
 import com.hvs.darkmatter.DarkMatter.Companion.UNIT_SCALE
+import com.hvs.darkmatter.ecs.component.FacingComponent
 import com.hvs.darkmatter.ecs.component.GraphicComponent
+import com.hvs.darkmatter.ecs.component.MoveComponent
+import com.hvs.darkmatter.ecs.component.PlayerComponent
 import com.hvs.darkmatter.ecs.component.TransformComponent
 import ktx.ashley.entity
 import ktx.ashley.with
 import ktx.log.debug
 import ktx.log.logger
+import kotlin.math.min
 
 class GameScreen(game: DarkMatter) : Screen(game) {
-    private val playerTexture = Texture(Gdx.files.internal("raw/graphics/ship_base.png"))
-    private val player = engine.entity {
-        with<TransformComponent> {
-            position.set(1f, 1f, 0f)
-        }
-        with<GraphicComponent> {
-            sprite.run {
-                setRegion(playerTexture)
-                setSize(texture.width * UNIT_SCALE, texture.height * UNIT_SCALE)
-                setOriginCenter()
-            }
-        }
-    }
 
     override fun show() {
-        LOG.debug { "Second screen is shown" }
+        LOG.debug { "Screen is shown" }
+
+        engine.entity {
+            with<TransformComponent> { setInitialPosition(4.5f, 8f, 0f) }
+            with<GraphicComponent>()
+            with<MoveComponent>()
+            with<PlayerComponent>()
+            with<FacingComponent>()
+        }
     }
 
     override fun render(delta: Float) {
-        engine.update(delta)
-    }
-
-    override fun dispose() {
-        playerTexture.dispose()
+        engine.update(min(MAX_DELTA_TIME, delta))
     }
 
     companion object {
         val LOG = logger<GameScreen>()
+
+        private const val MAX_DELTA_TIME = 1 / 20f
     }
 }
