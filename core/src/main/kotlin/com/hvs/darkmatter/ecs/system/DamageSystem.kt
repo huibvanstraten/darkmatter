@@ -42,7 +42,7 @@ class DamageSystem: IteratingSystem(allOf(PlayerComponent::class, TransformCompo
     }
 
     companion object {
-        private const val DAMAGE_AREA = 2f
+        const val DAMAGE_AREA = 2f
         private const val DAMAGE_PER_SECOND = 25f
         private const val DEATH_EXPLOSION_DURATION = 0.9f
     }
