@@ -2,6 +2,8 @@ package com.hvs.darkmatter.ecs.system
 
 import com.badlogic.ashley.core.Entity
 import com.badlogic.ashley.systems.IteratingSystem
+import com.hvs.darkmatter.GameEvent
+import com.hvs.darkmatter.GameEventManager
 import com.hvs.darkmatter.ecs.component.PlayerComponent
 import com.hvs.darkmatter.ecs.component.RemoveComponent
 import com.hvs.darkmatter.ecs.component.TransformComponent
@@ -11,7 +13,9 @@ import ktx.ashley.exclude
 import ktx.ashley.get
 import kotlin.math.max
 
-class DamageSystem: IteratingSystem(allOf(PlayerComponent::class, TransformComponent::class).exclude(RemoveComponent::class).get()) {
+class DamageSystem(
+    private val gameEventManager: GameEventManager
+): IteratingSystem(allOf(PlayerComponent::class, TransformComponent::class).exclude(RemoveComponent::class).get()) {
 
     override fun processEntity(entity: Entity, deltaTime: Float) {
         val transformComponent = entity[TransformComponent.componentMapper]
@@ -33,7 +37,16 @@ class DamageSystem: IteratingSystem(allOf(PlayerComponent::class, TransformCompo
             }
 
             playerComponent.life -= damage
+            gameEventManager.dispatchEvent(GameEvent.PlayerHit.apply {
+                this.player = entity
+                life = playerComponent.life
+                maxLife = playerComponent.maxLife
+            })
+
             if (playerComponent.life <= 0f) {
+                gameEventManager.dispatchEvent(GameEvent.PlayerDeath.apply {
+                    this.distance = playerComponent.distanceTraveled
+                })
                 entity.addComponent<RemoveComponent>(engine) {
                     delay = DEATH_EXPLOSION_DURATION
                 }

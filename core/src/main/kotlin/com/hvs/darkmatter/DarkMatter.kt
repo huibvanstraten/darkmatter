@@ -4,15 +4,18 @@ import com.badlogic.ashley.core.Engine
 import com.badlogic.ashley.core.PooledEngine
 import com.badlogic.gdx.Application.LOG_DEBUG
 import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.graphics.Texture
+import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.graphics.g2d.Batch
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
-import com.badlogic.gdx.graphics.g2d.TextureAtlas
-import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.utils.viewport.FitViewport
-import com.hvs.darkmatter.ecs.component.PowerUpComponent
+import com.hvs.darkmatter.audio.AudioService
+import com.hvs.darkmatter.audio.DefaultAudioService
+import com.hvs.darkmatter.ecs.asset.ShaderProgramAsset
+import com.hvs.darkmatter.ecs.asset.TextureAsset
+import com.hvs.darkmatter.ecs.asset.TextureAtlasAsset
 import com.hvs.darkmatter.ecs.system.AnimationSystem
 import com.hvs.darkmatter.ecs.system.AttachSystem
+import com.hvs.darkmatter.ecs.system.CameraShakeSystem
 import com.hvs.darkmatter.ecs.system.DamageSystem
 import com.hvs.darkmatter.ecs.system.DebugSystem
 import com.hvs.darkmatter.ecs.system.MoveSystem
@@ -21,25 +24,36 @@ import com.hvs.darkmatter.ecs.system.PlayerInputSystem
 import com.hvs.darkmatter.ecs.system.PowerUpSystem
 import com.hvs.darkmatter.ecs.system.RemoveSystem
 import com.hvs.darkmatter.ecs.system.RenderSystem
-import com.hvs.darkmatter.screen.GameScreen
+import com.hvs.darkmatter.screen.LoadingScreen
 import com.hvs.darkmatter.screen.Screen
 import ktx.app.KtxGame
-import ktx.assets.dispose
+import ktx.assets.async.AssetStorage
+import ktx.async.KtxAsync
+import ktx.preferences.set
 
 class DarkMatter : KtxGame<Screen>() {
     val uiViewport = FitViewport(VIRTUAL_WIDTH_PIXELS.toFloat(), VIRTUAL_HEIGHT_PIXELS.toFloat())
     val gameViewPort = FitViewport(VIRTUAL_WIDTH.toFloat(), VIRTUAL_HEIGHT.toFloat())
-    val batch: Batch by lazy { SpriteBatch() }
-
-    val graphicsAtlas by lazy { TextureAtlas(Gdx.files.internal("assets/graphics/graphics.atlas")) }
-    val backgroundTexture by lazy { Texture("graphics/background.png") }
+    private val batch: Batch by lazy { SpriteBatch() }
+    val gameEventManager = GameEventManager()
+    val assets: AssetStorage by lazy {
+        KtxAsync.initiate()
+        AssetStorage()
+    }
+    val audioService : AudioService by lazy { DefaultAudioService(assets) }
+    val preferences : Preferences by lazy { Gdx.app.getPreferences("darkMatter") }
 
     val engine: Engine by lazy {
+        preferences["key"] = 3.5f
+
         PooledEngine().apply {
+            val graphicsAtlas = assets[TextureAtlasAsset.GAME_GRAPHICS.descriptor]
+
             addSystem(PlayerInputSystem(gameViewPort))
             addSystem(MoveSystem())
-            addSystem(PowerUpSystem())
-            addSystem(DamageSystem())
+            addSystem(PowerUpSystem(gameEventManager, audioService))
+            addSystem(DamageSystem(gameEventManager))
+            addSystem(CameraShakeSystem(gameViewPort.camera, gameEventManager))
             addSystem(
                 PlayerAnimationSystem(
                     graphicsAtlas.findRegion("ship_base"),
@@ -49,7 +63,13 @@ class DarkMatter : KtxGame<Screen>() {
             )
             addSystem(AttachSystem())
             addSystem(AnimationSystem(graphicsAtlas))
-            addSystem(RenderSystem(batch, gameViewPort, uiViewport, backgroundTexture))
+            addSystem(RenderSystem(
+                batch, gameViewPort,
+                uiViewport,
+                assets[TextureAsset.BACKGROUND.descriptor],
+                gameEventManager,
+                assets[ShaderProgramAsset.OUTLINE.descriptor]
+            ))
             addSystem(RemoveSystem())
             addSystem(DebugSystem())
         }
@@ -57,16 +77,14 @@ class DarkMatter : KtxGame<Screen>() {
 
     override fun create() {
         Gdx.app.logLevel = LOG_DEBUG
-        addScreen(GameScreen(this))
-        setScreen<GameScreen>()
+        addScreen(LoadingScreen(this))
+        setScreen<LoadingScreen>()
     }
 
     override fun dispose() {
         super.dispose()
         batch.dispose()
-
-        graphicsAtlas.textures.dispose()
-        backgroundTexture.dispose()
+        assets.dispose()
     }
 
     companion object {

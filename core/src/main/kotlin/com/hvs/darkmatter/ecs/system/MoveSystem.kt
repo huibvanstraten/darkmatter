@@ -15,6 +15,7 @@ import com.hvs.darkmatter.ecs.component.TransformComponent
 import ktx.ashley.allOf
 import ktx.ashley.exclude
 import ktx.ashley.get
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -101,7 +102,10 @@ class MoveSystem :
             MAX_VERT_POS_PLAYER_SPEED
         )
 
+        //register distance travelled for high score
+        val oldY = transformComponent.position.y
         moveEntity(transformComponent, moveComponent, deltaTime)
+        player.distanceTraveled += abs(transformComponent.position.y - oldY)
     }
 
     companion object {

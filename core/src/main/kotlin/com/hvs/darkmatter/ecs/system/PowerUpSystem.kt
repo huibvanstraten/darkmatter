@@ -5,6 +5,9 @@ import com.badlogic.ashley.systems.IteratingSystem
 import com.badlogic.gdx.math.MathUtils
 import com.badlogic.gdx.math.Rectangle
 import com.hvs.darkmatter.DarkMatter.Companion.VIRTUAL_WIDTH
+import com.hvs.darkmatter.GameEvent
+import com.hvs.darkmatter.GameEventManager
+import com.hvs.darkmatter.audio.AudioService
 import com.hvs.darkmatter.ecs.component.AnimationComponent
 import com.hvs.darkmatter.ecs.component.GraphicComponent
 import com.hvs.darkmatter.ecs.component.MoveComponent
@@ -22,11 +25,16 @@ import ktx.ashley.with
 import ktx.collections.GdxArray
 import ktx.collections.gdxArrayOf
 import ktx.log.debug
-import ktx.log.error
 import ktx.log.logger
 import kotlin.math.min
 
-class PowerUpSystem: IteratingSystem(allOf(PowerUpComponent::class, TransformComponent::class).exclude(RemoveComponent::class).get()) {
+class PowerUpSystem(
+    private val gameEventManager: GameEventManager,
+    private val audioService: AudioService
+): IteratingSystem(allOf(
+    PowerUpComponent::class,
+    TransformComponent::class)
+    .exclude(RemoveComponent::class).get()) {
     private val playerBoundingRect = Rectangle()
     private val powerUpBoundingRect = Rectangle()
     private val playerEntities by lazy {
@@ -118,28 +126,24 @@ class PowerUpSystem: IteratingSystem(allOf(PowerUpComponent::class, TransformCom
         val powerUpComponent = powerUp[PowerUpComponent.componentMapper]
         require(powerUpComponent != null) { "Entity | entity| must have a PowerUpComponent. entity=$powerUp" }
 
-        LOG.debug { "Picking up power up of type ${powerUpComponent.type}" }
+        powerUpComponent.type.also { powerUpType ->
+            LOG.debug { "Picking up power up of type ${powerUpComponent.type}" }
 
-        when (powerUpComponent.type) {
-            PowerUpType.SPEED_1 -> {
-                player[MoveComponent.componentMapper]?.let { it.speed.y += BOOST_1_SPEED_GAIN }
+            player[MoveComponent.componentMapper]?.let { it.speed.y += powerUpType.speedGain }
+            player[PlayerComponent.componentMapper]?.let {
+                it.life = min(it.maxLife, it.life + powerUpType.lifeGain)
+                it.shield = min(it.maxShield, it.shield + powerUpType.shieldGain)
             }
-            PowerUpType.SPEED_2 -> {
-                player[MoveComponent.componentMapper]?.let { it.speed.y += BOOST_2_SPEED_GAIN }
-            }
-            PowerUpType.LIFE -> {
-                player[PlayerComponent.componentMapper]?.let { it.life = min(it.maxLife, it.life + LIFE_GAIN) }
-            }
-            PowerUpType.SHIELD -> {
-                player[PlayerComponent.componentMapper]?.let { it.shield = min(it.maxShield, it.shield + SHIELD_GAIN) }
-            }
-            else ->
-                LOG.error { "Unsupported power up of type ${powerUpComponent.type}" }
+            audioService.play(powerUpType.soundAsset)
+
+            gameEventManager.dispatchEvent(
+                GameEvent.CollectPowerUp.apply {
+                    this.player = player
+                    this.type = powerUpType
+                })
         }
         powerUp.addComponent<RemoveComponent>(engine)
     }
-
-
 
     companion object {
         private val LOG = logger<PowerUpSystem>()
@@ -147,10 +151,6 @@ class PowerUpSystem: IteratingSystem(allOf(PowerUpComponent::class, TransformCom
         private const val MAX_SPAWN_INTERVAL = 1.5f
         private const val MIN_SPAWN_INTERVAL = 0.9f
         private const val POWER_UP_SPEED = -8.75f
-        private const val BOOST_1_SPEED_GAIN = 3f
-        private const val BOOST_2_SPEED_GAIN = 3.75f
-        private const val LIFE_GAIN = 25f
-        private const val SHIELD_GAIN = 25f
 
         private class SpawnPattern(
             type1: PowerUpType = PowerUpType.NONE,
