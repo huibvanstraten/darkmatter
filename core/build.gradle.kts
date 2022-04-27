@@ -20,6 +20,8 @@ dependencies {
     implementation("io.github.libktx:ktx-preferences:${Versions.ktx}")
     implementation("io.github.libktx:ktx-scene2d:${Versions.ktx}")
     implementation("io.github.libktx:ktx-style:${Versions.ktx}")
+    implementation("com.badlogicgames.gdx:gdx-controllers:1.9.13")
+
 }
 
 java {
