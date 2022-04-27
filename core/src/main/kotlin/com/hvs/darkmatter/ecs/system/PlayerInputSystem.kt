@@ -37,9 +37,5 @@ class PlayerInputSystem(
             diffX > 0 -> FacingComponent.FacingDirection.RIGHT
             else -> FacingComponent.FacingDirection.DEFAULT
         }
-
-
-
     }
-
 }

@@ -2,7 +2,6 @@ package com.hvs.darkmatter.ecs.system
 
 import com.badlogic.ashley.core.Entity
 import com.badlogic.ashley.systems.IteratingSystem
-import com.hvs.darkmatter.ecs.component.GraphicComponent
 import com.hvs.darkmatter.ecs.component.RemoveComponent
 import ktx.ashley.allOf
 import ktx.ashley.get

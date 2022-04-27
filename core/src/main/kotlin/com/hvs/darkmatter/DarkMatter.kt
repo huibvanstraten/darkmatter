@@ -6,10 +6,13 @@ import com.badlogic.gdx.Application.LOG_DEBUG
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.graphics.g2d.Batch
+import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
+import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.utils.viewport.FitViewport
 import com.hvs.darkmatter.audio.AudioService
 import com.hvs.darkmatter.audio.DefaultAudioService
+import com.hvs.darkmatter.ecs.asset.BitmapFontAsset
 import com.hvs.darkmatter.ecs.asset.ShaderProgramAsset
 import com.hvs.darkmatter.ecs.asset.TextureAsset
 import com.hvs.darkmatter.ecs.asset.TextureAtlasAsset
@@ -26,13 +29,23 @@ import com.hvs.darkmatter.ecs.system.RemoveSystem
 import com.hvs.darkmatter.ecs.system.RenderSystem
 import com.hvs.darkmatter.screen.LoadingScreen
 import com.hvs.darkmatter.screen.Screen
+import com.hvs.darkmatter.ui.createSkin
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import ktx.app.KtxGame
 import ktx.assets.async.AssetStorage
 import ktx.async.KtxAsync
+import ktx.collections.gdxArrayOf
 import ktx.preferences.set
 
 class DarkMatter : KtxGame<Screen>() {
     val uiViewport = FitViewport(VIRTUAL_WIDTH_PIXELS.toFloat(), VIRTUAL_HEIGHT_PIXELS.toFloat())
+    val stage: Stage by lazy {
+        val result = Stage(uiViewport, batch)
+        Gdx.input.inputProcessor = result
+        result
+    }
+
     val gameViewPort = FitViewport(VIRTUAL_WIDTH.toFloat(), VIRTUAL_HEIGHT.toFloat())
     private val batch: Batch by lazy { SpriteBatch() }
     val gameEventManager = GameEventManager()
@@ -40,8 +53,8 @@ class DarkMatter : KtxGame<Screen>() {
         KtxAsync.initiate()
         AssetStorage()
     }
-    val audioService : AudioService by lazy { DefaultAudioService(assets) }
-    val preferences : Preferences by lazy { Gdx.app.getPreferences("darkMatter") }
+    val audioService: AudioService by lazy { DefaultAudioService(assets) }
+    val preferences: Preferences by lazy { Gdx.app.getPreferences("darkMatter") }
 
     val engine: Engine by lazy {
         preferences["key"] = 3.5f
@@ -63,13 +76,15 @@ class DarkMatter : KtxGame<Screen>() {
             )
             addSystem(AttachSystem())
             addSystem(AnimationSystem(graphicsAtlas))
-            addSystem(RenderSystem(
-                batch, gameViewPort,
-                uiViewport,
-                assets[TextureAsset.BACKGROUND.descriptor],
-                gameEventManager,
-                assets[ShaderProgramAsset.OUTLINE.descriptor]
-            ))
+            addSystem(
+                RenderSystem(
+                    batch, gameViewPort,
+                    uiViewport,
+                    assets[TextureAsset.BACKGROUND.descriptor],
+                    gameEventManager,
+                    assets[ShaderProgramAsset.OUTLINE.descriptor]
+                )
+            )
             addSystem(RemoveSystem())
             addSystem(DebugSystem())
         }
@@ -77,14 +92,25 @@ class DarkMatter : KtxGame<Screen>() {
 
     override fun create() {
         Gdx.app.logLevel = LOG_DEBUG
-        addScreen(LoadingScreen(this))
-        setScreen<LoadingScreen>()
+
+        val assetReferences = gdxArrayOf(
+            TextureAtlasAsset.values().filter { it.isSkinAtlas }.map { assets.loadAsync(it.descriptor) },
+            BitmapFontAsset.values().map { assets.loadAsync(it.descriptor) }
+        ).flatten()
+        KtxAsync.launch {
+            assetReferences.joinAll()
+            createSkin(assets)
+
+            addScreen(LoadingScreen(this@DarkMatter))
+            setScreen<LoadingScreen>()
+        }
     }
 
     override fun dispose() {
         super.dispose()
         batch.dispose()
         assets.dispose()
+        stage.dispose()
     }
 
     companion object {
